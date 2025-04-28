@@ -137,7 +137,8 @@ print(mean, 'mean');
 
 Here's an example of how the temperature distribution is visualized on the map:
 
-![LST Visualization](https://upload.wikimedia.org/wikipedia/commons/4/4c/Temperature_Map_Example.png)
+![2](https://github.com/user-attachments/assets/3250f089-f757-433c-9115-055e9106f889)
+![mean seasonal lst](https://github.com/user-attachments/assets/d40bec36-a9e8-41d0-a3fa-d600596aa550)
 
 ---
 
