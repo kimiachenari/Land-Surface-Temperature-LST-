@@ -1,0 +1,101 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometry = ee.FeatureCollection("projects/ee-kimiachenaary/assets/11");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+// Get brightness temperature 
+var landsat8Toa = ee.ImageCollection('LANDSAT/LC08/C01/T1_TOA');
+var temperature = landsat8Toa.filterBounds(geometry)
+    .select(['B10'], ['temp'])
+    .map(function(image) {
+      // Kelvin to Celsius.
+      return image.subtract(273.15)
+          .set('system:time_start', image.get('system:time_start'));
+    });
+var clippedCol=temperature.map(function(im){ 
+  return im.clip(geometry2);
+});
+// Calculate bands for temperatures; composite into
+// a single image.
+
+var LST = clippedCol.filterDate('2021-01-01', '2021-12-30')
+    .reduce(ee.Reducer.mean())
+    .select([0], ['winter']);
+
+
+Map.addLayer(LST,{min: -5, max:45, palette: [
+'040274', '040281', '0502a3', '0502b8', '0502ce', '0502e6',
+'0602ff', '235cb1', '307ef3', '269db1', '30c8e2', '32d3ef',
+'3be285', '3ff38f', '86e26f', '3ae237', 'b5e22e', 'd6e21f',
+'fff705', 'ffd611', 'ffb613', 'ff8b13', 'ff6e08', 'ff500d',
+'ff0000', 'de0101', 'c21301', 'a71001', '911003'
+ ]},'LST');
+ 
+//reduce
+var means = LST.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: geometry2
+});
+
+// Make a feature without geometry and set the properties to the dictionary of means.
+var feature = ee.Feature(null, means);
+
+// Wrap the Feature in a FeatureCollection for export.
+var featureCollection = ee.FeatureCollection([feature]);
+
+// Export the FeatureCollection.
+Export.table.toDrive({
+  collection: featureCollection,
+  description: 'exportTableExample',
+  fileFormat: 'CSV'
+});
+
+//set time
+var startdate = '2021-01-01' 
+var enddate = '2021-12-30' 
+
+var years = ee.List.sequence(ee.Date(startdate).get('year'), ee.Date(enddate).get('year'));
+
+/// LST calculations from Landsat
+var pointsmean = function(image) {
+  var means = image.reduceRegions({
+    collection: geometry2,
+    reducer: ee.Reducer.mean()
+  })
+  
+  // assign time for every feature
+  means = means.map(function(f) { return f.set({date: image.date().format("YYYY-MM-dd")}) })
+  
+  return means.copyProperties(image)
+};
+
+//LST data
+var finalLST = temperature.map(pointsmean).flatten()
+.sort('date', false)
+.select(['date', 'mean'])
+print(finalLST.limit(100), 'final LST')
+
+//export LST data as .csv
+Export.table.toDrive({
+collection: finalLST,
+  description: 'LST_'+startdate+'TO'+enddate,
+fileFormat: 'CSV'
+});
+
+//print mean value of region
+{
+var mean = ee.Number(LST.reduceRegion({
+reducer: ee.Reducer.mean(),
+geometry: geometry2,
+scale: 30,
+maxPixels: 1e9
+}).values().get(0));
+print(mean, 'mean');
+}
+
+//export LST image as .tif
+Export.image.toDrive({
+  image: LST,
+  description: 'LST',
+  region: geometry2,
+  fileFormat: 'GeoTIFF',
+});
+
